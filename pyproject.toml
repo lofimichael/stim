@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stim"
+version = "1.0.0"
+description = "CLI caffeine tracker with half-life calculations and visualization"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary Dual-License" }
+dependencies = [
+    "plotext>=5.3.2",
+]
+
+[project.scripts]
+stim = "bin.stim:main" 
