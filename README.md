@@ -20,6 +20,7 @@ A command-line tool for tracking caffeine intake with half-life calculations and
 ```bash
 brew tap lofimichael/stim https://github.com/lofimichael/stim && brew install stim
 ```
+*Note: This package is not in Homebrew Core as it uses a dual license model - This model helps fund custom implementations for organizations concerned with [quantified self](https://en.wikipedia.org/wiki/Quantified_self) while keeping the tool free for individuals.*
 
 ## Usage
 
