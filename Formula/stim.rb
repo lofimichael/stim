@@ -4,7 +4,7 @@ class Stim < Formula
   desc "CLI caffeine tracker with half-life calculations and visualization"
   homepage "https://github.com/lofimichael/stim"
   url "https://github.com/lofimichael/stim/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "0686f5393cd46b13a9fbe399a88a50dda0f7f1da2583dea994cff7da6db3b5b9"
+  sha256 "e6cc8641b6121a2679445e1ff290888d044caa6127ca09ab0476d24e28f87977"
   license "Proprietary Dual-License"
 
   head do
@@ -16,7 +16,7 @@ class Stim < Formula
 
   resource "plotext" do
     url "https://files.pythonhosted.org/packages/c9/d7/f75f397af966fe252d0d34ffd3cae765317fce2134f925f95e7d6725d1ce/plotext-5.3.2.tar.gz"
-    sha256 "52d1e932e67c177bf357a3f0fe6ce14d1a96f7f7d5679d7b455b929df517068e"
+    sha256 "e6cc8641b6121a2679445e1ff290888d044caa6127ca09ab0476d24e28f87977"
   end
 
   def install
