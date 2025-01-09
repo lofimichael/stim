@@ -7,7 +7,7 @@ A command-line tool for tracking caffeine intake with half-life calculations and
 ## Features
 
 - Track caffeine doses with precise timing
-- Calculate current caffeine levels based on half-life
+- Calculate current caffeine levels based on 6 hour half-life
 - Visualize caffeine levels over time with ASCII graphs
 - Project future caffeine levels
 - Undo/redo functionality
