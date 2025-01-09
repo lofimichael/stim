@@ -18,15 +18,7 @@ A command-line tool for tracking caffeine intake with half-life calculations and
 ### Using Homebrew (recommended for macOS)
 
 ```bash
-brew install lofimichael/tap/stim
-```
-
-### From Source
-
-```bash
-git clone https://github.com/lofimichael/stim.git
-cd stim
-pip install .
+brew tap lofimichael/stim https://github.com/lofimichael/stim && brew install stim
 ```
 
 ## Usage

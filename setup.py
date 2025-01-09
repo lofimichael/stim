@@ -10,7 +10,11 @@ setup(
     author_email="michael@lofilabs.xyz",
     url="https://github.com/lofimichael/stim",
     packages=find_packages(),
-    scripts=["bin/stim"],
+    entry_points={
+        'console_scripts': [
+            'stim=stim.stim:main',
+        ],
+    },
     install_requires=[
         "plotext==5.3.2",
     ],

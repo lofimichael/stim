@@ -2,3 +2,7 @@ data/*.json
 .DS_Store
 __pycache__/
 *.pyc
+
+# Python egg metadata
+*.egg-info/
+*.egg

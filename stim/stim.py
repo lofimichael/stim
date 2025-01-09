@@ -7,18 +7,19 @@ import os
 from pathlib import Path
 import plotext as plt
 
-# Constants
+# Constants ⚙️
 HALF_LIFE_HOURS = 6
-DATA_DIR = Path.home() / '.stim'  # Store data in user's home directory
+DATA_DIR = Path.home() / '.stim'  # Store data in user's home directory 📁
 DATA_FILE = DATA_DIR / 'caffeine_data.json'
 CACHE_FILE = DATA_DIR / 'caffeine_cache.json'
 TIMESERIES_FILE = DATA_DIR / 'caffeine_timeseries.json'
-VERSION = "1.0.0"  # Added version number
+VERSION = "1.0.0"  # Added version number 🔢
 
-# Create data directory if it doesn't exist
+# Create data directory if it doesn't exist 📂
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_data():
+    """Load caffeine tracking data"""
     DATA_DIR.mkdir(exist_ok=True)
     if not DATA_FILE.exists():
         return {
@@ -41,10 +42,12 @@ def load_data():
         return data
 
 def save_data(data):
+    """Save caffeine tracking data"""
     with open(DATA_FILE, 'w') as f:
         json.dump(data, f, indent=2)
 
 def calculate_current_level(doses, specific_time=None):
+    """Calculate current caffeine level"""
     current_time = specific_time or time.time()
     total = 0
     # Sort doses by timestamp to ensure proper calculation
@@ -78,23 +81,17 @@ def cache_current_level():
 def get_cached_level():
     """Get the most recent cached measurement"""
     try:
-        if not CACHE_FILE.exists():
-            return cache_current_level()
-        
-        with open(CACHE_FILE) as f:
-            cache = json.load(f)
-            
-        # If cache is older than 16 minutes, recalculate
-        if time.time() - cache['timestamp'] > 960:  # 16 minutes
-            return cache_current_level()
-            
-        return cache
+        # Always recalculate immediately
+        return cache_current_level()
     except Exception:
         return cache_current_level()
 
 def add_dose(amount, minutes_offset=0):
+    """Add a new caffeine dose"""
     if amount <= 0:
         raise ValueError("Dose amount must be greater than 0")
+    if amount > 1000:
+        raise ValueError("Amount must be less than 1000! That's seriously a -lot- of caffeine! ⚠️")
         
     data = load_data()
     # For positive offsets (hours/minutes ago), we subtract from current time
@@ -114,9 +111,15 @@ def add_dose(amount, minutes_offset=0):
     
     data['doses'].append(dose)
     save_data(data)
+    
+    # Invalidate cache after adding a dose
+    if CACHE_FILE.exists():
+        CACHE_FILE.unlink()
+    
     return calculate_current_level(data['doses'])
 
 def show_history(limit=5):
+    """Show recent dose history"""
     data = load_data()
     if not data['doses']:
         return []
@@ -139,6 +142,7 @@ def show_history(limit=5):
     return history
 
 def undo_last():
+    """Undo the last dose"""
     data = load_data()
     if data['doses']:
         removed = data['doses'].pop()
@@ -177,7 +181,7 @@ def generate_timeseries(start_time=None, end_time=None, interval_minutes=15):
     
     # Safety check for very large ranges
     if num_points > 10000:
-        print(f"Warning: Large time range ({num_points} points)")
+        print(f"Warning: Large time range ({num_points} points) ⚠️")
     
     timeseries = []
     for i in range(num_points):
@@ -262,11 +266,13 @@ def check_future_dose(amount, minutes_offset=0):
     # Add to a copy of current doses
     test_doses = data['doses'] + [temp_dose]
     
-    # Get next 6 PM and 8 AM times
+    # Get next 6 PM, 8 AM, and 10 PM times
     next_evening = get_next_time(18, 0)  # 6 PM
+    next_night = get_next_time(22, 0)    # 10 PM
     next_morning = get_next_time(8, 0)   # 8 AM
     
     evening_level = calculate_current_level(test_doses, next_evening)
+    night_level = calculate_current_level(test_doses, next_night)
     morning_level = calculate_current_level(test_doses, next_morning)
     
     return {
@@ -279,6 +285,10 @@ def check_future_dose(amount, minutes_offset=0):
             'time': datetime.fromtimestamp(next_evening).strftime('%d/%m/%Y %H:%M'),
             'level': evening_level
         },
+        'night': {
+            'time': datetime.fromtimestamp(next_night).strftime('%d/%m/%Y %H:%M'),
+            'level': night_level
+        },
         'morning': {
             'time': datetime.fromtimestamp(next_morning).strftime('%d/%m/%Y %H:%M'),
             'level': morning_level
@@ -286,13 +296,14 @@ def check_future_dose(amount, minutes_offset=0):
     }
 
 def plot_graph(hours=24, project_hours=72):  # Default to 3 days projection
+    """Plot detailed caffeine level graph"""
     data = load_data()
     now = time.time()
     
-    # Generate time points for past and future
+    # Generate time points for past and future with 5-minute intervals
     start_time = now - (hours * 3600)
     end_time = now + (project_hours * 3600)
-    time_points = list(range(int(start_time), int(end_time), 900))  # 15-minute intervals
+    time_points = list(range(int(start_time), int(end_time), 300))  # 5-minute intervals
     
     # Split points into historical and projected
     historical_points = [t for t in time_points if t <= now]
@@ -302,14 +313,17 @@ def plot_graph(hours=24, project_hours=72):  # Default to 3 days projection
     historical_levels = [calculate_current_level(data['doses'], t) for t in historical_points]
     projected_levels = [calculate_current_level(data['doses'], t) for t in projected_points]
     
-    # Format times for display
+    # Format times for display - only show every 30 minutes for readability
     all_times = []
-    for t in time_points:
+    for i, t in enumerate(time_points):
         dt = datetime.fromtimestamp(t)
-        if t <= now:
-            all_times.append(dt.strftime('%H:%M'))
+        if i % 6 == 0:  # Every 30 minutes (6 * 5 minutes)
+            if t <= now:
+                all_times.append(dt.strftime('%H:%M '))
+            else:
+                all_times.append(f"*{dt.strftime('%H:%M')} ")
         else:
-            all_times.append(f"*{dt.strftime('%H:%M')}")
+            all_times.append("")  # Empty label for other times
     
     # Calculate reasonable y-axis limits
     all_levels = historical_levels + projected_levels
@@ -339,20 +353,31 @@ def plot_graph(hours=24, project_hours=72):  # Default to 3 days projection
     
     # Set up the plot
     plt.plotsize(120, 30)  # Even larger plot for better readability
-    plt.title(f"Caffeine Levels (Past {hours}h + Next {project_hours}h)\nWhite = Historical, Green = Projected, Red Stars = Target Times")
+    plt.title(f"Caffeine Levels (Past {hours}h + Next {project_hours}h)\nGreen = Historical, White Dots = Projected, Red Stars = Target Times")
     plt.xlabel("Time (* = Projected)")
-    plt.ylabel("Caffeine (mg)")
+    plt.ylabel("Caffeine (mg) ")  # Add space after label
     
-    # Plot historical data in white
+    # Plot historical data in green
     if historical_levels:
         historical_indices = x_indices[:len(historical_points)]
-        plt.plot(historical_indices, historical_levels, color="white")
-        plt.scatter(historical_indices, historical_levels, color="white", marker="dot")
+        plt.plot(historical_indices, historical_levels, color="green")
+        
+        # Add vertical line at current time, but only up to current level if it's non-zero
+        current_idx = len(historical_points) - 1
+        current_level = historical_levels[-1]
+        
+        # Only draw vertical line if we have a non-zero current level
+        if current_level > 0:
+            # Draw vertical line segments from 0 to current level
+            plt.plot([current_idx, current_idx], [0, current_level], color="green")
     
-    # Plot projected data in green
+    # Plot projected data with white dots - use fewer dots for cleaner look
     if projected_levels:
         projected_indices = x_indices[len(historical_points):]
-        plt.plot(projected_indices, projected_levels, color="green")
+        # Only plot every 15 minutes for dots
+        dot_indices = projected_indices[::15]
+        dot_levels = projected_levels[::15]
+        plt.scatter(dot_indices, dot_levels, color="white", marker="dot")
     
     # Add markers for important times (6 PM and 8 AM)
     next_6pm = get_next_time(18, 0)
@@ -371,12 +396,14 @@ def plot_graph(hours=24, project_hours=72):  # Default to 3 days projection
     # Set up axes
     plt.ylim(0, y_max)
     y_ticks = list(range(0, int(y_max) + y_step, y_step))
-    plt.yticks(y_ticks)
+    # Add spaces to y-axis labels
+    y_tick_labels = [f"{y} " for y in y_ticks]  # Add space after each number
+    plt.yticks(y_ticks, y_tick_labels)
     
-    # Set x-axis ticks with time labels
+    # Set x-axis ticks with time labels - show fewer labels for readability
     tick_spacing = max(1, len(time_points) // 15)  # Show ~15 time labels
     tick_indices = list(range(0, len(time_points), tick_spacing))
-    tick_labels = [all_times[i] for i in tick_indices]
+    tick_labels = [all_times[i] if i < len(all_times) else "" for i in tick_indices]
     plt.xticks(tick_indices, tick_labels)
     
     plt.grid(True)
@@ -384,9 +411,10 @@ def plot_graph(hours=24, project_hours=72):  # Default to 3 days projection
     plt.show()
 
 def main():
+    """Main program entry point"""
     if len(sys.argv) == 1:
         level = get_cached_level()['level']
-        print(f"Current caffeine level: {level}mg")
+        print(f"Current caffeine level: {level}mg ☕")
         return
 
     cmd = sys.argv[1].lower()
@@ -394,6 +422,10 @@ def main():
     # Handle all non-numeric commands first
     if cmd == 'help':
         print_help()
+        return
+        
+    if cmd == 'about':
+        print_about()
         return
 
     if cmd in ['redo', 'undo', 'history', 'graph', 'check']:
@@ -429,98 +461,78 @@ def main():
                 hours = time_offset / 60
                 if abs(hours) >= 1:
                     direction = "ago" if hours < 0 else "ahead"
-                    print(f"Added {amount}mg ({abs(hours):.1f}h {direction}). Current level: {current}mg")
+                    print(f"Added {amount}mg ({abs(hours):.1f}h {direction}). Current level: {current}mg ☕")
                 else:
                     direction = "ago" if time_offset < 0 else "ahead"
-                    print(f"Added {amount}mg ({abs(time_offset):.0f}min {direction}). Current level: {current}mg")
+                    print(f"Added {amount}mg ({abs(time_offset):.0f}min {direction}). Current level: {current}mg ☕")
             else:
-                print(f"Added {amount}mg. Current level: {current}mg")
+                print(f"Added {amount}mg. Current level: {current}mg ☕")
         except ValueError as e:
             print(str(e))
     except ValueError:
-        print("Invalid input. Use 'stim help' to see usage instructions.")
+        print("Invalid input. Use 'stim help' to see usage instructions")
 
 def handle_redo():
+    """Handle redo command"""
     data = load_data()
     if not data or not data.get('undone_doses'):
         print("No doses to redo")
         return
         
-    print("\nDEBUG: Current data state:")
-    print(f"- Total doses: {len(data['doses'])}")
-    print(f"- Undone doses: {len(data['undone_doses'])}")
-    print(f"- Current caffeine level: {calculate_current_level(data['doses'])}mg")
-    
     last_undone = data['undone_doses'].pop()
-    print("\nDEBUG: Restoring dose:")
-    print(f"- ID: {last_undone.get('id', 'N/A')}")
-    print(f"- Amount: {last_undone['amount']}mg")
-    print(f"- Timestamp: {last_undone['timestamp']}")
-    print(f"- Datetime: {last_undone['datetime']}")
-    
     data['doses'].append(last_undone)
     save_data(data)
     
+    # Invalidate cache after redo
+    if CACHE_FILE.exists():
+        CACHE_FILE.unlink()
+    
     # Only show last 5 doses if there are any
     if data['doses']:
-        print("\nLast 5 doses:")
+        print("\nLast 5 doses: 📜")
         for dose in data['doses'][-5:]:
-            print(f"{dose['datetime']}: {dose['amount']}mg")
+            print(f"{dose['datetime']}: {dose['amount']}mg ☕")
     
-    print(f"\nRestored dose: {last_undone['amount']}mg from {last_undone['datetime']}")
+    print(f"\nRestored dose: {last_undone['amount']}mg from {last_undone['datetime']} ↩️")
     current = calculate_current_level(data['doses'])
-    print(f"Current level: {current}mg")
-    
-    print("\nDEBUG: New data state:")
-    print(f"- Total doses: {len(data['doses'])}")
-    print(f"- Undone doses: {len(data['undone_doses'])}")
-    print(f"- New caffeine level: {current}mg")
+    print(f"Current level: {current}mg ☕")
 
 def handle_undo():
+    """Handle undo command"""
     data = load_data()
     if not data or not data.get('doses'):
         print("No doses to undo")
         return
         
-    print("\nDEBUG: Current data state:")
-    print(f"- Total doses: {len(data['doses'])}")
-    print(f"- Undone doses: {len(data['undone_doses'])}")
-    print(f"- Current caffeine level: {calculate_current_level(data['doses'])}mg")
-    
     removed = data['doses'].pop()
-    print("\nDEBUG: Removing dose:")
-    print(f"- ID: {removed.get('id', 'N/A')}")
-    print(f"- Amount: {removed['amount']}mg")
-    print(f"- Timestamp: {removed['timestamp']}")
-    print(f"- Datetime: {removed['datetime']}")
-    
     data['undone_doses'].append(removed)
     save_data(data)
     
+    # Invalidate cache after undo
+    if CACHE_FILE.exists():
+        CACHE_FILE.unlink()
+    
     # Only show last 5 doses if there are any remaining
     if data['doses']:
-        print("\nLast 5 doses:")
+        print("\nLast 5 doses: 📜")
         for dose in data['doses'][-5:]:
-            print(f"{dose['datetime']}: {dose['amount']}mg")
+            print(f"{dose['datetime']}: {dose['amount']}mg ☕")
     
-    print(f"\nRemoved dose: {removed['amount']}mg from {removed['datetime']}")
+    print(f"\nRemoved dose: {removed['amount']}mg from {removed['datetime']} ↩️")
     current = calculate_current_level(data['doses'])
-    print(f"Current level: {current}mg")
-    
-    print("\nDEBUG: New data state:")
-    print(f"- Total doses: {len(data['doses'])}")
-    print(f"- Undone doses: {len(data['undone_doses'])}")
-    print(f"- New caffeine level: {current}mg")
+    print(f"Current level: {current}mg ☕")
 
 def handle_history():
+    """Handle history command"""
     history = show_history(5)
-    print("\nRecent doses:")
+    print("\nRecent doses: 📜")
     for dose in history:
-        print(f"{dose['datetime']} ({dose['hours_ago']}h ago): {dose['amount']}mg -> {dose['remaining']}mg remaining")
+        print(f"{dose['datetime']} ({dose['hours_ago']}h ago): {dose['amount']}mg -> {dose['remaining']}mg remaining ☕")
     current = calculate_current_level(load_data()['doses'])
-    print(f"\nCurrent total: {current}mg")
+    print(f"\nCurrent total: {current}mg ☕")
 
 def handle_graph():
+    """Handle graph command"""
     hours = 24
     project_hours = 72
     if len(sys.argv) > 2:
@@ -534,6 +546,7 @@ def handle_graph():
     plot_graph(hours, project_hours)
 
 def handle_check():
+    """Handle check command"""
     if len(sys.argv) <= 2:
         print("Please provide an amount to check")
         return
@@ -541,22 +554,28 @@ def handle_check():
     try:
         amount = float(sys.argv[2])
         projection = check_future_dose(amount)
-        print(f"\nCurrent level: {projection['current']['level']:.1f}mg")
-        print(f"After {amount}mg dose: {projection['current']['added_level']:.1f}mg")
+        print(f"\nCurrent level: {projection['current']['level']:.1f}mg ☕")
+        print(f"After {amount}mg dose: {projection['current']['added_level']:.1f}mg ⬆️")
         
-        # Calculate time until evening and morning
+        # Calculate time until evening, night, and morning
         now = time.time()
         evening_hours = (get_next_time(18, 0) - now) / 3600
+        night_hours = (get_next_time(22, 0) - now) / 3600
         morning_hours = (get_next_time(8, 0) - now) / 3600
         
-        print(f"\nProjected levels:")
-        print(f"  At {projection['evening']['time']} (6 PM, in {evening_hours:.1f}h): {projection['evening']['level']:.1f}mg")
+        print(f"\nProjected levels: 🔮")
+        print(f"  At {projection['evening']['time']} (6 PM, in {evening_hours:.1f}h): {projection['evening']['level']:.1f}mg 🌅")
         if projection['evening']['level'] > 30:
             print("  ⚠️  Warning: Evening level above 30mg may affect sleep")
-        print(f"  At {projection['morning']['time']} (8 AM, in {morning_hours:.1f}h): {projection['morning']['level']:.1f}mg")
+            
+        print(f"  At {projection['night']['time']} (10 PM, in {night_hours:.1f}h): {projection['night']['level']:.1f}mg 🌙")
+        if projection['night']['level'] > 15:
+            print("  ⚠️  Warning: Night level above 15mg may affect sleep")
+            
+        print(f"  At {projection['morning']['time']} (8 AM, in {morning_hours:.1f}h): {projection['morning']['level']:.1f}mg 🌅")
         
         # Show half-life progression
-        print("\nHalf-life progression:")
+        print("\nHalf-life progression: ⏳")
         initial = projection['current']['added_level']
         print(f"  t=0 (now): {initial:.1f}mg")
         for i in range(1, 4):
@@ -564,20 +583,46 @@ def handle_check():
             level = initial * (0.5 ** i)
             print(f"  t={hours}h: {level:.1f}mg")
     except ValueError:
-        print("Invalid amount. Please provide a number.")
+        print("Invalid amount. Please provide a number")
+
+def print_disclaimer():
+    """Print disclaimer message"""
+    print("\nDISCLAIMER:")
+    print("This software is for informational purposes only and is not intended")
+    print("to be a substitute for professional medical advice, diagnosis, or")
+    print("treatment. The calculations and tracking features are approximations")
+    print("based on general well-studied caffeine half-life data and should not")
+    print("be used in isolation for medical decisions. Always seek the advice of")
+    print("your physician or other qualified health provider with any questions")
+    print("you may have regarding caffeine consumption or a medical condition.")
+    
+def print_about():
+    """Print about message"""
+    print(f"\nCaffeine Tracker v{VERSION}")
+    print("Created by Michael Kirsanov")
+    print("https://github.com/lofimichael/stim")
+    print("\nA command-line tool for tracking caffeine intake and projecting")
+    print("levels over time based on the scientifically established half-life")
+    print("of caffeine in the human body.")
+    print("\nLicensed under dual license - free for personal use.")
+    print("Commercial use requires a license. Contact michael@lofilabs.xyz")
+    print_disclaimer()
+
 
 def print_help():
+    """Print help message"""
     print(f"Caffeine Tracker v{VERSION} Usage:")
     print("  stim                    Show current caffeine level")
     print("  stim <amount>           Add caffeine dose in mg")
     print("  stim <amount> -h <hours> Add dose with hours offset (negative = past)")
     print("  stim <amount> <minutes>  Add dose with minutes offset (negative for past)")
-    print("  stim check <amount>      Check impact of potential dose")
+    print("  stim check <amount>      Check projected levels of potential caffeinedose")
     print("  stim undo               Show last 5 doses and remove most recent")
     print("  stim redo               Restore the last undone dose")
     print("  stim history            Show last 5 doses with remaining amounts")
     print("  stim graph [hours] [projection_hours]  Show caffeine levels over time")
     print("  stim help               Show this help message")
+    print("  stim about              Show about message")
 
 if __name__ == '__main__':
     main()
